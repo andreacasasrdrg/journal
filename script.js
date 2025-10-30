@@ -25,10 +25,16 @@ async function loadImagesFromAssets() {
       return a.localeCompare(b);
     });
 
-    // Use the image list for advanced layout
+  // Use the image list for advanced layout
     document.body.style.backgroundColor = "#2735F2";
     const gallery = document.getElementById("image-gallery");
     gallery.innerHTML = "";
+  // Ensure gallery allows horizontal scrolling and hides vertical overflow
+  gallery.style.overflowX = "auto"; // allow horizontal scrolling
+  gallery.style.overflowY = "hidden"; // prevent vertical overflow
+  gallery.style.boxSizing = "border-box";
+  // Fix gallery height to viewport to prevent images rendering below the fold
+  gallery.style.height = window.innerHeight + "px";
 
     // Variables for layout
     const sectionHeight = window.innerHeight;
@@ -52,8 +58,9 @@ async function loadImagesFromAssets() {
     }
 
     function getRandomSizeWithAspectRatio(originalWidth, originalHeight) {
-      const minSize = 120,
-        maxSize = 320;
+      // Original size bounds (we'll apply phone-scale later in repositionImage)
+      const minSize = 120;
+      const maxSize = 320;
       const scale = getRandomBetween(minSize, maxSize) / originalWidth;
       return {
         width: originalWidth * scale,
@@ -63,10 +70,14 @@ async function loadImagesFromAssets() {
 
     function findBestPosition(width, height) {
       const gridSize = 10;
-      for (let y = 0; y < window.innerHeight * 3; y += gridSize * 3) {
-        for (let x = 0; x + width <= window.innerWidth; x += gridSize) {
+      // Iterate horizontally first (x), then vertically (y) to create a horizontal flow
+      for (let x = 0; x < window.innerWidth * 3; x += gridSize * 3) {
+        for (let y = 0; y + height <= window.innerHeight; y += gridSize) {
           const verticalVariation = getRandomBetween(-30, 50);
-          const posY = Math.max(0, y + verticalVariation);
+          // Compute candidate Y and clamp so image stays inside viewport vertically
+          let posYCandidate = Math.max(0, y + verticalVariation);
+          const maxTop = Math.max(0, window.innerHeight - height);
+          const posY = Math.min(posYCandidate, maxTop);
           if (!isPositionOccupied(x, posY, width, height)) {
             occupiedAreas.push({
               left: x,
@@ -78,14 +89,14 @@ async function loadImagesFromAssets() {
           }
         }
       }
-      // Fallback: random position
+      // Fallback: random position within an extended horizontal span
       const randomX = getRandomBetween(
         0,
-        Math.max(0, window.innerWidth - width)
+        Math.max(0, Math.floor(window.innerWidth * 3) - width)
       );
       const randomY = getRandomBetween(
         0,
-        Math.max(0, window.innerHeight * 3 - height)
+        Math.max(0, window.innerHeight - height)
       );
       occupiedAreas.push({
         left: randomX,
@@ -103,17 +114,33 @@ async function loadImagesFromAssets() {
         originalWidth,
         originalHeight
       );
-      img.style.width = width + "px";
-      img.style.height = height + "px";
-      const position = findBestPosition(width, height);
-      img.style.left = position.x + "px";
-      img.style.top = position.y + "px";
-      const requiredHeight = position.y + height + 100;
-      const currentHeight =
-        parseInt(gallery.style.height) || window.innerHeight;
-      if (requiredHeight > currentHeight) {
-        gallery.style.height = requiredHeight + "px";
+      // Cap width so it never exceeds the viewport (leave small padding)
+      const maxAllowedWidth = Math.max(100, Math.floor(window.innerWidth - 20));
+      let finalWidth = Math.min(width, maxAllowedWidth);
+      const scale = finalWidth / width;
+      let finalHeight = Math.round(height * scale);
+
+      // If on a phone, reduce the resulting size by 20%
+      if (window.innerWidth <= 480) {
+        finalWidth = Math.round(finalWidth * 0.8);
+        finalHeight = Math.round(finalHeight * 0.8);
       }
+
+      img.style.width = finalWidth + "px";
+      img.style.height = finalHeight + "px";
+      const position = findBestPosition(finalWidth, finalHeight);
+      img.style.left = position.x + "px";
+      // Ensure image is not placed below the viewport
+      const clampedTop = Math.min(Math.max(0, position.y), Math.max(0, window.innerHeight - finalHeight));
+      img.style.top = clampedTop + "px";
+      // Update gallery width to ensure horizontal scroll can accommodate images
+      const requiredWidth = position.x + finalWidth + 100;
+      const currentWidth = parseInt(gallery.style.width) || window.innerWidth;
+      if (requiredWidth > currentWidth) {
+        gallery.style.width = requiredWidth + "px";
+      }
+      // Keep gallery height equal to viewport to avoid vertical expansion
+      gallery.style.height = window.innerHeight + "px";
     }
 
     function repositionAllImages() {
@@ -141,6 +168,9 @@ async function loadImagesFromAssets() {
       img.style.position = "absolute";
       img.style.objectFit = "cover";
       img.style.boxShadow = "0 4px 8px rgba(0,0,0,0.2)";
+      // Make responsive: don't allow image to overflow horizontally
+      img.style.maxWidth = "100%";
+      img.style.height = "auto";
       img.style.zIndex = index + 1;
       img.onerror = function () {
         this.style.display = "none";
@@ -176,7 +206,7 @@ async function loadImagesFromAssets() {
       };
       gallery.appendChild(img);
     });
-    // Use the JSON manifest for infinite scroll and other flows
+    // Use the JSON manifest for infinite scroll and other flows (horizontal)
     console.log("Using JSON manifest for infinite scroll (imageList)");
     setupNaturalInfiniteScroll(imageList);
   } catch (error) {
@@ -191,16 +221,16 @@ function setupNaturalInfiniteScroll(imageFiles) {
   function handleScroll() {
     if (isLoading) return;
 
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const windowHeight = window.innerHeight;
-    const documentHeight = document.documentElement.scrollHeight;
+    // Horizontal scroll position checks
+    const scrollLeft =
+      window.pageXOffset || document.documentElement.scrollLeft;
+    const windowWidth = window.innerWidth;
+    const documentWidth = document.documentElement.scrollWidth;
 
-    // Only add more images if user has scrolled close to the bottom AND there's space
-    if (scrollTop + windowHeight >= documentHeight - 100) {
+    // Only add more images if user has scrolled close to the right edge
+    if (scrollLeft + windowWidth >= documentWidth - 200) {
       isLoading = true;
-
-      console.log(`🔄 Adding more images to fill empty space...`);
-
+      console.log(`🔄 Adding more images to fill empty horizontal space...`);
       // Reset loading flag after a short delay
       setTimeout(() => {
         isLoading = false;
@@ -259,4 +289,25 @@ function getRandomSizeWithAspectRatio(originalWidth, originalHeight) {
 }
 
 // Load images when the DOM is ready
+// Helper: center horizontally on today's image
+function scrollToTodaysDate() {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const match = allImages.find((img) => {
+      const m =
+        img.dataset.filename &&
+        img.dataset.filename.match(/(\d{4}-\d{2}-\d{2})/);
+      return m && m[1] === today;
+    });
+    if (match) {
+      const rect = match.getBoundingClientRect();
+      const scrollX =
+        window.scrollX + rect.left - window.innerWidth / 2 + rect.width / 2;
+      window.scrollTo({ left: scrollX, behavior: "smooth" });
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
 document.addEventListener("DOMContentLoaded", loadImagesFromAssets);

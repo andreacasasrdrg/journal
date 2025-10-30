@@ -162,6 +162,9 @@ async function loadImagesFromAssets() {
     // Create images from JSON list
     let jsonImagesLoaded = 0;
     let scrolledToToday = false;
+    // Track the most recent available date (<= today) found in filenames
+    let latestDateFound = null; // string YYYY-MM-DD
+    let latestDateImageElement = null;
     imageList.forEach((filename, index) => {
       const img = document.createElement("img");
       img.src = `assets/${filename}`;
@@ -188,15 +191,21 @@ async function loadImagesFromAssets() {
         try {
           const today = new Date().toISOString().split("T")[0];
           const m = filename.match(/(\d{4}-\d{2}-\d{2})/);
+          // Update latest available date (only consider dates <= today)
+          if (m && m[1]) {
+            const fileDate = m[1];
+            if (fileDate <= today) {
+              if (!latestDateFound || fileDate > latestDateFound) {
+                latestDateFound = fileDate;
+                latestDateImageElement = this;
+              }
+            }
+          }
+
           if (!scrolledToToday && m && m[1] === today) {
             scrolledToToday = true;
-            const rect = this.getBoundingClientRect();
-            const scrollY =
-              window.scrollY +
-              rect.top -
-              window.innerHeight / 2 +
-              rect.height / 2;
-            window.scrollTo({ top: scrollY, behavior: "smooth" });
+            // scroll horizontally to today's image
+            scrollToImage(this);
           }
         } catch (e) {
           // ignore
@@ -204,7 +213,12 @@ async function loadImagesFromAssets() {
 
         // After all images are loaded, fallback to scroll if we didn't already
         if (jsonImagesLoaded === imageList.length && !scrolledToToday) {
-          scrollToTodaysDate();
+          // If we found a most recent date (<= today), scroll to that image; otherwise fallback
+          if (latestDateImageElement) {
+            scrollToImage(latestDateImageElement);
+          } else {
+            scrollToTodaysDate();
+          }
         }
       };
       gallery.appendChild(img);
@@ -257,8 +271,8 @@ function getRandomBetween(min, max) {
 }
 
 function getRandomSizeWithAspectRatio(originalWidth, originalHeight) {
-  const minSize = 100;
-  const maxSize = 400;
+  const minSize = 150;
+  const maxSize = 500;
   const aspectRatio = originalWidth / originalHeight;
 
   for (let attempts = 0; attempts < 10; attempts++) {
@@ -308,6 +322,18 @@ function scrollToTodaysDate() {
         window.scrollX + rect.left - window.innerWidth / 2 + rect.width / 2;
       window.scrollTo({ left: scrollX, behavior: "smooth" });
     }
+  } catch (e) {
+    // ignore
+  }
+}
+
+// Helper: center horizontally on a specific image element
+function scrollToImage(img) {
+  try {
+    const rect = img.getBoundingClientRect();
+    const scrollX =
+      window.scrollX + rect.left - window.innerWidth / 2 + rect.width / 2;
+    window.scrollTo({ left: scrollX, behavior: "smooth" });
   } catch (e) {
     // ignore
   }

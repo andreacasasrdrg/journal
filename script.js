@@ -1,23 +1,174 @@
 async function loadImagesFromAssets() {
   console.log("🚀 Starting loadImagesFromAssets function");
+  console.log("🚀 Starting loadImagesFromAssets function");
 
   try {
-    // Fetch the directory listing from the assets folder
-    console.log("📡 Fetching assets/ directory...");
-    const response = await fetch("assets/");
+    // Fetch the image list from the JSON file
+    console.log("📡 Fetching assets/images.json...");
+    const response = await fetch("assets/images.json");
     console.log("📡 Response status:", response.status, response.statusText);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const html = await response.text();
-    console.log("📄 Received HTML length:", html.length);
+    const imageList = await response.json();
+    console.log("📄 Received image list:", imageList);
 
-    // Parse the HTML to extract image file names
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-    const links = doc.querySelectorAll("a");
+    // Sort imageList by date in filename (YYYY-MM-DD)
+    imageList.sort((a, b) => {
+      const dateA = a.match(/(\d{4}-\d{2}-\d{2})/);
+      const dateB = b.match(/(\d{4}-\d{2}-\d{2})/);
+      if (dateA && dateB) {
+        return dateA[1].localeCompare(dateB[1]);
+      }
+      return a.localeCompare(b);
+    });
+
+    // Use the image list for advanced layout
+    document.body.style.backgroundColor = "#2735F2";
+    const gallery = document.getElementById("image-gallery");
+    gallery.innerHTML = "";
+
+    // Variables for layout
+    const sectionHeight = window.innerHeight;
+    let occupiedAreas = [];
+    let allImages = [];
+
+    function getRandomBetween(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function isPositionOccupied(x, y, width, height) {
+      const rect1 = { left: x, top: y, right: x + width, bottom: y + height };
+      return occupiedAreas.some((rect2) => {
+        return !(
+          rect1.right <= rect2.left ||
+          rect1.left >= rect2.right ||
+          rect1.bottom <= rect2.top ||
+          rect1.top >= rect2.bottom
+        );
+      });
+    }
+
+    function getRandomSizeWithAspectRatio(originalWidth, originalHeight) {
+      const minSize = 120,
+        maxSize = 320;
+      const scale = getRandomBetween(minSize, maxSize) / originalWidth;
+      return {
+        width: originalWidth * scale,
+        height: originalHeight * scale,
+      };
+    }
+
+    function findBestPosition(width, height) {
+      const gridSize = 10;
+      for (let y = 0; y < window.innerHeight * 3; y += gridSize * 3) {
+        for (let x = 0; x + width <= window.innerWidth; x += gridSize) {
+          const verticalVariation = getRandomBetween(-30, 50);
+          const posY = Math.max(0, y + verticalVariation);
+          if (!isPositionOccupied(x, posY, width, height)) {
+            occupiedAreas.push({
+              left: x,
+              top: posY,
+              right: x + width,
+              bottom: posY + height,
+            });
+            return { x, y: posY };
+          }
+        }
+      }
+      // Fallback: random position
+      const randomX = getRandomBetween(
+        0,
+        Math.max(0, window.innerWidth - width)
+      );
+      const randomY = getRandomBetween(
+        0,
+        Math.max(0, window.innerHeight * 3 - height)
+      );
+      occupiedAreas.push({
+        left: randomX,
+        top: randomY,
+        right: randomX + width,
+        bottom: randomY + height,
+      });
+      return { x: randomX, y: randomY };
+    }
+
+    function repositionImage(img) {
+      const originalWidth = img.naturalWidth || 200;
+      const originalHeight = img.naturalHeight || 200;
+      const { width, height } = getRandomSizeWithAspectRatio(
+        originalWidth,
+        originalHeight
+      );
+      img.style.width = width + "px";
+      img.style.height = height + "px";
+      const position = findBestPosition(width, height);
+      img.style.left = position.x + "px";
+      img.style.top = position.y + "px";
+      const requiredHeight = position.y + height + 100;
+      const currentHeight =
+        parseInt(gallery.style.height) || window.innerHeight;
+      if (requiredHeight > currentHeight) {
+        gallery.style.height = requiredHeight + "px";
+      }
+    }
+
+    function repositionAllImages() {
+      occupiedAreas = [];
+      allImages.forEach((img) => repositionImage(img));
+    }
+
+    var resizeTimeout;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        repositionAllImages();
+      }, 250);
+    });
+
+    // Create images from JSON list
+    imageList.forEach((filename, index) => {
+      const img = document.createElement("img");
+      img.src = `assets/${filename}`;
+      img.alt = `Image ${index + 1}: ${filename}`;
+      img.loading = "lazy";
+      img.style.position = "absolute";
+      img.style.objectFit = "cover";
+      img.style.boxShadow = "0 4px 8px rgba(0,0,0,0.2)";
+      img.style.zIndex = index + 1;
+      img.onerror = function () {
+        this.style.display = "none";
+      };
+      img.onload = function () {
+        repositionImage(this);
+        allImages.push(this);
+        imagesLoaded++;
+        // After all images are loaded, scroll to today's date
+        if (imagesLoaded === imageList.length) {
+          scrollToTodaysDate();
+        }
+      };
+      gallery.appendChild(img);
+    });
+    // Scroll to today's date function
+    function scrollToTodaysDate() {
+      const today = new Date().toISOString().split("T")[0];
+      // Find first image that matches today's date
+      const todayImage = allImages.find((img) => {
+        const filename = img.alt.split(": ")[1];
+        const dateMatch = filename.match(/(\d{4}-\d{2}-\d{2})/);
+        return dateMatch && dateMatch[1] === today;
+      });
+      if (todayImage) {
+        window.scrollTo({
+          top: todayImage.offsetTop - window.innerHeight / 2,
+          behavior: "smooth",
+        });
+      }
+    }
     console.log("🔗 Found links:", links.length);
 
     // Filter for image files (common image extensions)
@@ -58,7 +209,8 @@ async function loadImagesFromAssets() {
     console.log("📅 Images sorted by date:", imageFiles);
 
     // Get the container element
-    const gallery = document.getElementById("image-gallery");
+    // gallery already declared above
+    // const gallery = document.getElementById("image-gallery");
 
     if (imageFiles.length === 0) {
       gallery.innerHTML = "<p>No images found in assets folder</p>";
@@ -245,7 +397,7 @@ async function loadImagesFromAssets() {
     }
 
     // Add resize listener for responsive behavior
-    let resizeTimeout;
+    // resizeTimeout already declared above
     window.addEventListener("resize", () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {

@@ -25,16 +25,16 @@ async function loadImagesFromAssets() {
       return a.localeCompare(b);
     });
 
-  // Use the image list for advanced layout
+    // Use the image list for advanced layout
     document.body.style.backgroundColor = "#2735F2";
     const gallery = document.getElementById("image-gallery");
     gallery.innerHTML = "";
-  // Ensure gallery allows horizontal scrolling and hides vertical overflow
-  gallery.style.overflowX = "auto"; // allow horizontal scrolling
-  gallery.style.overflowY = "hidden"; // prevent vertical overflow
-  gallery.style.boxSizing = "border-box";
-  // Fix gallery height to viewport to prevent images rendering below the fold
-  gallery.style.height = window.innerHeight + "px";
+    // Ensure gallery allows horizontal scrolling and hides vertical overflow
+    gallery.style.overflowX = "auto"; // allow horizontal scrolling
+    gallery.style.overflowY = "hidden"; // prevent vertical overflow
+    gallery.style.boxSizing = "border-box";
+    // Fix gallery height to viewport to prevent images rendering below the fold
+    gallery.style.height = window.innerHeight + "px";
 
     // Variables for layout
     const sectionHeight = window.innerHeight;
@@ -131,7 +131,10 @@ async function loadImagesFromAssets() {
       const position = findBestPosition(finalWidth, finalHeight);
       img.style.left = position.x + "px";
       // Ensure image is not placed below the viewport
-      const clampedTop = Math.min(Math.max(0, position.y), Math.max(0, window.innerHeight - finalHeight));
+      const clampedTop = Math.min(
+        Math.max(0, position.y),
+        Math.max(0, window.innerHeight - finalHeight)
+      );
       img.style.top = clampedTop + "px";
       // Update gallery width to ensure horizontal scroll can accommodate images
       const requiredWidth = position.x + finalWidth + 100;

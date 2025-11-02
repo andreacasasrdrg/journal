@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
 html,
 body {
   margin: 0;
@@ -26,6 +28,63 @@ body {
   display: inline-block;
   vertical-align: middle;
   pointer-events: auto;
+}
+
+/* Date text card styles: full viewport, non-scrollable content (top to bottom) */
+.date-text-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  box-sizing: border-box;
+  overflow: hidden;
+  /* prevent internal scrolling */
+  display: flex;
+  align-items: center;
+  /* vertically center content */
+  justify-content: center;
+  /* center horizontally */
+  pointer-events: auto;
+  color: #4fff38;
+  background: transparent;
+  z-index: 1000;
+}
+
+.date-text-card .card-inner {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.card-text-frame {
+  border: 1px solid currentColor;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0;
+  /* padding lives on the inner box */
+  width: 80vw;
+  /* take 80% of the viewport width */
+  max-width: 1200px;
+  /* optional max for very wide screens */
+  margin: 0 auto;
+  /* center horizontally inside the card */
+}
+
+.card-text-box {
+  padding: 40px 24px;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+  /* do not allow internal scrolling */
+  box-sizing: border-box;
+  font-family: 'Instrument Serif', 'Playfair Display', serif;
+  text-align: center;
 }
 
 /* Ensure the body hides vertical scroll */

@@ -25,6 +25,24 @@ async function loadImagesFromAssets() {
       return a.localeCompare(b);
     });
 
+    // Fetch texts.json (optional) and group by date
+    let textsByDate = {};
+    try {
+      const tResp = await fetch("assets/texts.json");
+      if (tResp.ok) {
+        const texts = await tResp.json();
+        texts.forEach((t) => {
+          if (t && t.date) {
+            const key = String(t.date).trim();
+            textsByDate[key] = textsByDate[key] || [];
+            textsByDate[key].push(t.content);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Could not load texts.json", e);
+    }
+
     // Use the image list for advanced layout
     document.body.style.backgroundColor = "#2735F2";
     const gallery = document.getElementById("image-gallery");
@@ -79,13 +97,14 @@ async function loadImagesFromAssets() {
           const maxTop = Math.max(0, window.innerHeight - height);
           const posY = Math.min(posYCandidate, maxTop);
           if (!isPositionOccupied(x, posY, width, height)) {
-            occupiedAreas.push({
+            const rect = {
               left: x,
               top: posY,
               right: x + width,
               bottom: posY + height,
-            });
-            return { x, y: posY };
+            };
+            occupiedAreas.push(rect);
+            return { x, y: posY, rect };
           }
         }
       }
@@ -98,13 +117,14 @@ async function loadImagesFromAssets() {
         0,
         Math.max(0, window.innerHeight - height)
       );
-      occupiedAreas.push({
+      const rect = {
         left: randomX,
         top: randomY,
         right: randomX + width,
         bottom: randomY + height,
-      });
-      return { x: randomX, y: randomY };
+      };
+      occupiedAreas.push(rect);
+      return { x: randomX, y: randomY, rect };
     }
 
     function repositionImage(img) {
@@ -136,14 +156,43 @@ async function loadImagesFromAssets() {
         Math.max(0, window.innerHeight - finalHeight)
       );
       img.style.top = clampedTop + "px";
-      // Update gallery width to ensure horizontal scroll can accommodate images
-      const requiredWidth = position.x + finalWidth + 100;
-      const currentWidth = parseInt(gallery.style.width) || window.innerWidth;
-      if (requiredWidth > currentWidth) {
-        gallery.style.width = requiredWidth + "px";
+      // remove previous occupied rect for this image if present
+      if (img._occupiedRect) {
+        const idx = occupiedAreas.indexOf(img._occupiedRect);
+        if (idx !== -1) occupiedAreas.splice(idx, 1);
       }
+      // if findBestPosition returned a rect, attach it to the image for future removal
+      if (position && position.rect) {
+        img._occupiedRect = position.rect;
+      } else {
+        // fallback: compute rect from current position and add it
+        const computedRect = {
+          left: position.x,
+          top: clampedTop,
+          right: position.x + finalWidth,
+          bottom: clampedTop + finalHeight,
+        };
+        occupiedAreas.push(computedRect);
+        img._occupiedRect = computedRect;
+      }
+      // Update gallery width to ensure horizontal scroll can accommodate images
+      updateGalleryWidth();
       // Keep gallery height equal to viewport to avoid vertical expansion
       gallery.style.height = window.innerHeight + "px";
+    }
+
+    // Recalculate gallery width precisely from occupiedAreas (avoid excess trailing space)
+    function updateGalleryWidth() {
+      try {
+        const maxRight = occupiedAreas.length
+          ? Math.max(...occupiedAreas.map((r) => r.right))
+          : 0;
+        const desired = Math.max(window.innerWidth, Math.ceil(maxRight));
+        gallery.style.width = desired + "px";
+      } catch (e) {
+        // fallback: ensure at least viewport width
+        gallery.style.width = window.innerWidth + "px";
+      }
     }
 
     function repositionAllImages() {
@@ -159,71 +208,172 @@ async function loadImagesFromAssets() {
       }, 250);
     });
 
-    // Create images from JSON list
+    // Process images and texts grouped by date so that text for date N appears before images of date N+1
     let jsonImagesLoaded = 0;
     let scrolledToToday = false;
-    // Track the most recent available date (<= today) found in filenames
-    let latestDateFound = null; // string YYYY-MM-DD
+    let latestDateFound = null;
     let latestDateImageElement = null;
-    imageList.forEach((filename, index) => {
-      const img = document.createElement("img");
-      img.src = `assets/${filename}`;
-      img.dataset.filename = filename;
-      img.alt = `Image ${index + 1}: ${filename}`;
-      img.loading = "lazy";
-      img.style.position = "absolute";
-      img.style.objectFit = "cover";
-      img.style.boxShadow = "0 4px 8px rgba(0,0,0,0.2)";
-      // Make responsive: don't allow image to overflow horizontally
-      img.style.maxWidth = "100%";
-      img.style.height = "auto";
-      img.style.zIndex = index + 1;
-      img.onerror = function () {
-        this.style.display = "none";
-      };
-      img.onload = function () {
-        repositionImage(this);
-        allImages.push(this);
-        jsonImagesLoaded++;
 
-        // If this image's filename contains today's date and we haven't scrolled yet,
-        // scroll immediately to center this image in the viewport.
-        try {
-          const today = new Date().toISOString().split("T")[0];
-          const m = filename.match(/(\d{4}-\d{2}-\d{2})/);
-          // Update latest available date (only consider dates <= today)
-          if (m && m[1]) {
-            const fileDate = m[1];
-            if (fileDate <= today) {
-              if (!latestDateFound || fileDate > latestDateFound) {
-                latestDateFound = fileDate;
-                latestDateImageElement = this;
-              }
-            }
-          }
-
-          if (!scrolledToToday && m && m[1] === today) {
-            scrolledToToday = true;
-            // scroll horizontally to today's image
-            scrollToImage(this);
-          }
-        } catch (e) {
-          // ignore
-        }
-
-        // After all images are loaded, fallback to scroll if we didn't already
-        if (jsonImagesLoaded === imageList.length && !scrolledToToday) {
-          // If we found a most recent date (<= today), scroll to that image; otherwise fallback
-          if (latestDateImageElement) {
-            scrollToImage(latestDateImageElement);
-          } else {
-            scrollToTodaysDate();
-          }
-        }
-      };
-      gallery.appendChild(img);
+    // Build imagesByDate mapping
+    const imagesByDate = {};
+    imageList.forEach((fn) => {
+      const m = fn.match(/(\d{4}-\d{2}-\d{2})/);
+      const d = m ? m[1] : "undated";
+      imagesByDate[d] = imagesByDate[d] || [];
+      imagesByDate[d].push(fn);
     });
-    // Use the JSON manifest for infinite scroll and other flows (horizontal)
+
+    // Combine dates from images and texts, sort ascending
+    const allDates = Array.from(
+      new Set(Object.keys(imagesByDate).concat(Object.keys(textsByDate || {})))
+    ).sort();
+
+    // Helper to create and append images for a specific date, returns a promise that resolves when images load or timeout
+    async function appendImagesForDate(date) {
+      const files = imagesByDate[date] || [];
+      if (!files.length) return;
+      const loadPromises = files.map((filename, idx) => {
+        return new Promise((resolve) => {
+          const img = document.createElement("img");
+          img.src = `assets/${filename}`;
+          img.dataset.filename = filename;
+          img.alt = `Image ${filename}`;
+          img.loading = "lazy";
+          img.style.position = "absolute";
+          img.style.objectFit = "cover";
+          img.style.boxShadow = "0 4px 8px rgba(0,0,0,0.2)";
+          img.style.maxWidth = "100%";
+          img.style.height = "auto";
+          img.style.zIndex = allImages.length + 1;
+
+          img.onerror = function () {
+            this.style.display = "none";
+            jsonImagesLoaded++;
+            resolve();
+          };
+
+          img.onload = function () {
+            try {
+              repositionImage(this);
+              allImages.push(this);
+              jsonImagesLoaded++;
+
+              // scroll-to-today and latestDate tracking
+              const today = new Date().toISOString().split("T")[0];
+              const m = filename.match(/(\d{4}-\d{2}-\d{2})/);
+              if (m && m[1]) {
+                const fileDate = m[1];
+                if (fileDate <= today) {
+                  if (!latestDateFound || fileDate > latestDateFound) {
+                    latestDateFound = fileDate;
+                    latestDateImageElement = this;
+                  }
+                }
+              }
+              if (!scrolledToToday && m && m[1] === today) {
+                scrolledToToday = true;
+                scrollToImage(this);
+              }
+            } catch (e) {}
+            resolve();
+          };
+
+          gallery.appendChild(img);
+        });
+      });
+
+      // Wait for all images for this date to finish loading or timeout after 1200ms
+      await Promise.race([
+        Promise.all(loadPromises),
+        new Promise((r) => setTimeout(r, 1200)),
+      ]);
+    }
+
+    // Iterate dates in order, append images then insert text card for that date
+    for (const date of allDates) {
+      await appendImagesForDate(date);
+
+      // After images for this date are appended, insert text card for this date (if any)
+      const texts = textsByDate[date];
+      if (!texts || !texts.length) continue;
+
+      const currentWidth = parseInt(gallery.style.width) || window.innerWidth;
+      const maxOccupiedRight = occupiedAreas.length
+        ? Math.max(...occupiedAreas.map((r) => r.right))
+        : 0;
+      const leftBase = Math.max(currentWidth, maxOccupiedRight);
+      const cardWidth = window.innerWidth;
+
+      const card = document.createElement("div");
+      card.className = "date-text-card";
+      card.style.position = "absolute";
+      card.style.left = leftBase + "px";
+      card.style.top = "0px";
+      card.style.width = cardWidth + "px";
+      card.style.height = window.innerHeight + "px";
+      card.style.zIndex = 1000;
+
+      const inner = document.createElement("div");
+      inner.className = "card-inner";
+      const frame = document.createElement("div");
+      frame.className = "card-text-frame";
+      const wrapper = document.createElement("div");
+      wrapper.className = "card-text-box";
+      texts.forEach((t) => {
+        const p = document.createElement("p");
+        p.textContent = t;
+        wrapper.appendChild(p);
+      });
+      frame.appendChild(wrapper);
+      inner.appendChild(frame);
+      card.appendChild(inner);
+      gallery.appendChild(card);
+
+      const cardRect = {
+        left: leftBase,
+        top: 0,
+        right: leftBase + cardWidth,
+        bottom: window.innerHeight,
+      };
+      occupiedAreas.push(cardRect);
+      updateGalleryWidth();
+
+      // Reposition any overlapping images
+      requestAnimationFrame(() => {
+        const overlapping = (r) =>
+          !(
+            r.right <= cardRect.left ||
+            r.left >= cardRect.right ||
+            r.bottom <= cardRect.top ||
+            r.top >= cardRect.bottom
+          );
+        for (let attempt = 0; attempt < 3; attempt++) {
+          let moved = false;
+          allImages.forEach((existingImg) => {
+            try {
+              const r = existingImg._occupiedRect;
+              if (r && overlapping(r)) {
+                repositionImage(existingImg);
+                moved = true;
+              }
+            } catch (e) {}
+          });
+          if (!moved) break;
+        }
+        card.style.zIndex = 1000;
+      });
+    }
+
+    // After processing dates, fallback scroll if we didn't already
+    if (!scrolledToToday) {
+      if (latestDateImageElement) {
+        scrollToImage(latestDateImageElement);
+      } else {
+        scrollToTodaysDate();
+      }
+    }
+
+    // Setup infinite scroll using the full image list
     console.log("Using JSON manifest for infinite scroll (imageList)");
     setupNaturalInfiniteScroll(imageList);
   } catch (error) {

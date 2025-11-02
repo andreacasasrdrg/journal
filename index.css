@@ -15,9 +15,7 @@ body {
   /* Keep gallery the height of the viewport */
   box-sizing: border-box;
   position: relative;
-  overflow-x: hidden;
-  /* Allow horizontal scrolling */
-  overflow-y: hidden;
+  overflow: hidden;
   /* Prevent vertical scrolling */
   white-space: nowrap;
 }

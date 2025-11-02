@@ -15,7 +15,7 @@ body {
   /* Keep gallery the height of the viewport */
   box-sizing: border-box;
   position: relative;
-  overflow-x: auto;
+  overflow-x: hidden;
   /* Allow horizontal scrolling */
   overflow-y: hidden;
   /* Prevent vertical scrolling */
@@ -28,6 +28,7 @@ body {
   display: inline-block;
   vertical-align: middle;
   pointer-events: auto;
+  overflow: hidden;
 }
 
 /* Date text card styles: full viewport, non-scrollable content (top to bottom) */
@@ -57,6 +58,8 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
+
 }
 
 .card-text-frame {
@@ -73,6 +76,7 @@ body {
   /* optional max for very wide screens */
   margin: 0 auto;
   /* center horizontally inside the card */
+  overflow: hidden;
 }
 
 .card-text-box {

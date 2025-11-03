@@ -1,18 +1,32 @@
 async function loadImagesFromAssets() {
   console.log("🚀 Starting loadImagesFromAssets function");
-  console.log("🚀 Starting loadImagesFromAssets function");
 
   try {
-    // Fetch the image list from the JSON file
-    console.log("📡 Fetching assets/images.json...");
-    const response = await fetch("assets/images.json");
-    console.log("📡 Response status:", response.status, response.statusText);
+    // Fetch image list from the server (may return array of strings or array of objects like {url: "..."})
+    const imagesRequest = await fetch("/api/get-images");
+    const response = await imagesRequest.json();
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    // Normalize response into an array of URL strings
+    let imageList = [];
+    if (Array.isArray(response)) {
+      imageList = response
+        .map((it) => {
+          if (!it) return null;
+          if (typeof it === "string") return it;
+          if (typeof it === "object") return it.url || it.secure_url || it.path || null;
+          return null;
+        })
+        .filter(Boolean);
+    } else if (response && typeof response === "object") {
+      // handle wrapped responses like { images: [...] }
+      const arr = response.images || response.results || [];
+      if (Array.isArray(arr)) {
+        imageList = arr
+          .map((it) => (typeof it === "string" ? it : it.url || it.secure_url || it.path || null))
+          .filter(Boolean);
+      }
     }
 
-    const imageList = await response.json();
     console.log("📄 Received image list:", imageList);
 
     // Sort imageList by date in filename (YYYY-MM-DD)
@@ -214,13 +228,34 @@ async function loadImagesFromAssets() {
     let latestDateFound = null;
     let latestDateImageElement = null;
 
-    // Build imagesByDate mapping
+    // Build imagesByDate mapping. imageList items are full URLs or local paths.
     const imagesByDate = {};
-    imageList.forEach((fn) => {
-      const m = fn.match(/(\d{4}-\d{2}-\d{2})/);
-      const d = m ? m[1] : "undated";
+    // Helper to get a basename from a URL/path
+    function basename(path) {
+      try {
+        return path.split("/").pop();
+      } catch (e) {
+        return path;
+      }
+    }
+
+    imageList.forEach((urlOrPath) => {
+      const name = basename(urlOrPath);
+      // Cloudinary often uses filenames like Screenshot_2025-11-03_at_00.29.05_cyrsbb.webp
+      // Normalize to look for YYYY-MM-DD or YYYY_MM_DD or YYYY-MM-DD in the string
+      let m = name.match(/(\d{4}-\d{2}-\d{2})/);
+      if (!m) m = name.match(/(\d{4}_\d{2}_\d{2})/);
+      if (!m) {
+        // try to find patterns like 2025-11-03 or 20251103
+        m = name.match(/(\d{8})/);
+        if (m) {
+          const s = m[1];
+          m = [s, `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`];
+        }
+      }
+      const d = m ? (m[1] ? m[1].replace(/_/g, "-") : m[0].replace(/_/g, "-")) : "undated";
       imagesByDate[d] = imagesByDate[d] || [];
-      imagesByDate[d].push(fn);
+      imagesByDate[d].push(urlOrPath);
     });
 
     // Combine dates from images and texts, sort ascending
@@ -232,10 +267,13 @@ async function loadImagesFromAssets() {
     async function appendImagesForDate(date) {
       const files = imagesByDate[date] || [];
       if (!files.length) return;
-      const loadPromises = files.map((filename, idx) => {
+      const loadPromises = files.map((urlOrPath, idx) => {
         return new Promise((resolve) => {
           const img = document.createElement("img");
-          img.src = `assets/${filename}`;
+          // If the entry looks like a full URL (starts with http), use it directly; otherwise assume it's a local asset path
+          const isFull = /^https?:\/\//i.test(urlOrPath);
+          img.src = isFull ? urlOrPath : `assets/${urlOrPath}`;
+          const filename = (function(){ try{ return basename(isFull ? new URL(urlOrPath).pathname.split('/').pop() : urlOrPath); }catch(e){ return basename(urlOrPath); } })();
           img.dataset.filename = filename;
           img.alt = `Image ${filename}`;
           img.loading = "lazy";
@@ -260,7 +298,7 @@ async function loadImagesFromAssets() {
 
               // scroll-to-today and latestDate tracking
               const today = new Date().toISOString().split("T")[0];
-              const m = filename.match(/(\d{4}-\d{2}-\d{2})/);
+              const m = filename.match(/(\d{4}-\d{2}-\d{2})/) || filename.match(/(\d{4}_\d{2}_\d{2})/) || filename.match(/(\d{8})/);
               if (m && m[1]) {
                 const fileDate = m[1];
                 if (fileDate <= today) {

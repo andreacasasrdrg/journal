@@ -1,0 +1,9 @@
+[build]
+  publish = "."                # where your index.html lives
+  functions = "netlify/functions"  # where serverless functions live
+
+# Optional: redirect /api/* → your function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200

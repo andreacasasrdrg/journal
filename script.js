@@ -13,7 +13,8 @@ async function loadImagesFromAssets() {
         .map((it) => {
           if (!it) return null;
           if (typeof it === "string") return it;
-          if (typeof it === "object") return it.url || it.secure_url || it.path || null;
+          if (typeof it === "object")
+            return it.url || it.secure_url || it.path || null;
           return null;
         })
         .filter(Boolean);
@@ -22,7 +23,11 @@ async function loadImagesFromAssets() {
       const arr = response.images || response.results || [];
       if (Array.isArray(arr)) {
         imageList = arr
-          .map((it) => (typeof it === "string" ? it : it.url || it.secure_url || it.path || null))
+          .map((it) =>
+            typeof it === "string"
+              ? it
+              : it.url || it.secure_url || it.path || null
+          )
           .filter(Boolean);
       }
     }
@@ -250,10 +255,14 @@ async function loadImagesFromAssets() {
         m = name.match(/(\d{8})/);
         if (m) {
           const s = m[1];
-          m = [s, `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`];
+          m = [s, `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`];
         }
       }
-      const d = m ? (m[1] ? m[1].replace(/_/g, "-") : m[0].replace(/_/g, "-")) : "undated";
+      const d = m
+        ? m[1]
+          ? m[1].replace(/_/g, "-")
+          : m[0].replace(/_/g, "-")
+        : "undated";
       imagesByDate[d] = imagesByDate[d] || [];
       imagesByDate[d].push(urlOrPath);
     });
@@ -273,7 +282,17 @@ async function loadImagesFromAssets() {
           // If the entry looks like a full URL (starts with http), use it directly; otherwise assume it's a local asset path
           const isFull = /^https?:\/\//i.test(urlOrPath);
           img.src = isFull ? urlOrPath : `assets/${urlOrPath}`;
-          const filename = (function(){ try{ return basename(isFull ? new URL(urlOrPath).pathname.split('/').pop() : urlOrPath); }catch(e){ return basename(urlOrPath); } })();
+          const filename = (function () {
+            try {
+              return basename(
+                isFull
+                  ? new URL(urlOrPath).pathname.split("/").pop()
+                  : urlOrPath
+              );
+            } catch (e) {
+              return basename(urlOrPath);
+            }
+          })();
           img.dataset.filename = filename;
           img.alt = `Image ${filename}`;
           img.loading = "lazy";
@@ -298,7 +317,10 @@ async function loadImagesFromAssets() {
 
               // scroll-to-today and latestDate tracking
               const today = new Date().toISOString().split("T")[0];
-              const m = filename.match(/(\d{4}-\d{2}-\d{2})/) || filename.match(/(\d{4}_\d{2}_\d{2})/) || filename.match(/(\d{8})/);
+              const m =
+                filename.match(/(\d{4}-\d{2}-\d{2})/) ||
+                filename.match(/(\d{4}_\d{2}_\d{2})/) ||
+                filename.match(/(\d{8})/);
               if (m && m[1]) {
                 const fileDate = m[1];
                 if (fileDate <= today) {

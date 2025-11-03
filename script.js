@@ -280,8 +280,7 @@ async function loadImagesFromAssets() {
         return new Promise((resolve) => {
           const img = document.createElement("img");
           // If the entry looks like a full URL (starts with http), use it directly; otherwise assume it's a local asset path
-          const isFull = /^https?:\/\//i.test(urlOrPath);
-          img.src = isFull ? urlOrPath : `assets/${urlOrPath}`;
+          img.src = urlOrPath;
           const filename = (function () {
             try {
               return basename(

@@ -15,7 +15,7 @@ body {
   /* Keep gallery the height of the viewport */
   box-sizing: border-box;
   position: relative;
-  overflow: hidden;
+  overflow-y: hidden;
   /* Prevent vertical scrolling */
   white-space: nowrap;
 }
@@ -87,10 +87,4 @@ body {
   box-sizing: border-box;
   font-family: 'Instrument Serif', 'Playfair Display', serif;
   text-align: center;
-}
-
-/* Ensure the body hides vertical scroll */
-body {
-  overflow-y: hidden;
-  overflow-x: auto;
 }

@@ -49,6 +49,7 @@ async function loadImagesFromAssets() {
     gallery.innerHTML = "";
     // Ensure gallery allows horizontal scrolling and hides vertical overflow
     gallery.style.overflowY = "hidden"; // prevent vertical overflow
+    gallery.style.overflowX = "auto"; // allow horizontal scrolling
     gallery.style.boxSizing = "border-box";
     // Fix gallery height to viewport to prevent images rendering below the fold
     gallery.style.height = window.innerHeight + "px";

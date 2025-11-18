@@ -35,7 +35,7 @@ body {
 }
 
 /* Add some horizontal gap between sections */
-.date-section + .date-section {
+.date-section+.date-section {
   margin-left: 32px;
 }
 
@@ -84,36 +84,45 @@ body {
   margin-bottom: 0;
 }
 
-/* Images container per date: flow top->bottom then wrap to the right as new columns */
+/* Images container per date: absolute positioning for random layout */
 .date-section-images {
-  column-width: 260px;
-  column-gap: 12px;
+  position: relative;
+  width: 100%;
   height: 100%;
+  min-height: calc(100vh - 200px);
+}
+
+/* Mobile stacked column mode applied when JS toggles .single-column */
+.date-section-images.single-column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 24px;
+  min-height: auto;
 }
 
 .date-section-images img {
   display: block;
   height: auto;
-  max-height: 70vh;
-  margin: 0 0 12px 0;
   max-width: 100%;
   object-fit: contain;
-  break-inside: avoid;
-  -webkit-column-break-inside: avoid;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
 }
 
-/* Single-image sections: image takes the full section width (but not larger than natural size) */
+/* Single-image sections: image takes natural size within section bounds */
 .date-section-images.single-image {
-  column-width: auto;
-  column-count: 1;
+  position: static;
   display: flex;
   justify-content: flex-start;
   align-items: center;
+  min-height: auto;
 }
 
 .date-section-images.single-image img {
-  max-width: 100%;
+  position: static;
+  max-width: 90vw;
+  max-height: 70vh;
   margin: 0;
 }
 

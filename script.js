@@ -1,3 +1,37 @@
+function randBetween(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+function applyRandomSizeToImage(img) {
+  const nw = img.naturalWidth;
+  const nh = img.naturalHeight;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  const isLarge = nw >= vw || nh >= vh;
+
+  if (isLarge) {
+    const scale = randBetween(0.3, 0.7);
+    const ar = nw / nh;
+    if (nw / vw >= nh / vh) {
+      const widthPx = Math.round(vw * scale);
+      img.style.width = widthPx + "px";
+      img.style.height = "auto";
+    } else {
+      const heightPx = Math.round(vh * scale);
+      img.style.height = heightPx + "px";
+      img.style.width = "auto";
+    }
+  } else {
+    const scale = randBetween(0.4, 0.9);
+    const widthPx = Math.round(nw * scale);
+    img.style.width = widthPx + "px";
+    img.style.height = "auto";
+  }
+
+  img.style.objectFit = "contain";
+}
+
 async function loadImagesFromAssets() {
   console.log("🚀 Starting loadImagesFromAssets function");
 
@@ -148,7 +182,6 @@ async function loadImagesFromAssets() {
 
       const extraSpan = document.createElement("span");
       extraSpan.className = "date-section-label-extra";
-      extraSpan.textContent = "journal";
 
       header.appendChild(dateSpan);
       header.appendChild(extraSpan);
@@ -172,6 +205,16 @@ async function loadImagesFromAssets() {
         imagesContainer.className = "date-section-images";
 
         const loadedImages = await preloadImagesForDate(imageUrls);
+
+        if (loadedImages.length === 1) {
+          // Single image for this date: let it use natural size,
+          // with CSS constraining it to the section width.
+          imagesContainer.classList.add("single-image");
+        } else if (loadedImages.length > 1) {
+          // Multiple images: apply random viewport/natural-based sizing
+          loadedImages.forEach((img) => applyRandomSizeToImage(img));
+        }
+
         loadedImages.forEach((img) => {
           imagesContainer.appendChild(img);
         });

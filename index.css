@@ -21,9 +21,9 @@ body {
 
 /* Container that holds each day as a horizontal "page" */
 .date-section {
-  display: inline-flex;
-  flex-direction: column;
-  justify-content: flex-start;
+  display: inline-grid;
+  grid-template-rows: auto auto 1fr;
+  justify-items: flex-start;
   align-items: stretch;
   height: 100vh;
   min-width: 100vw;
@@ -84,20 +84,37 @@ body {
   margin-bottom: 0;
 }
 
-/* Images container per date */
+/* Images container per date: flow top->bottom then wrap to the right as new columns */
 .date-section-images {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: flex-start;
+  column-width: 260px;
+  column-gap: 12px;
+  height: 100%;
 }
 
 .date-section-images img {
   display: block;
-  max-width: 220px;
   height: auto;
-  object-fit: cover;
+  max-height: 70vh;
+  margin: 0 0 12px 0;
+  max-width: 100%;
+  object-fit: contain;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* Single-image sections: image takes the full section width (but not larger than natural size) */
+.date-section-images.single-image {
+  column-width: auto;
+  column-count: 1;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.date-section-images.single-image img {
+  max-width: 100%;
+  margin: 0;
 }
 
 /* Make sure the whole app still scrolls horizontally */

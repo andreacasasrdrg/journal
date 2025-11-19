@@ -1,5 +1,5 @@
 // /netlify/functions/get-images.js
-export async function handler(event) {
+exports.handler = async function handler(event) {
   // CORS headers (if you want to access externally later)
   const headers = {
     "Access-Control-Allow-Origin": "*",

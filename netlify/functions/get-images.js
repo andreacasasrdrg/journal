@@ -47,7 +47,6 @@ exports.handler = async function handler(event) {
     }
 
     const data = await res.json();
-    console.log("data", data);
 
     return {
       statusCode: 200,
@@ -65,4 +64,4 @@ exports.handler = async function handler(event) {
       body: JSON.stringify({ error: err.message }),
     };
   }
-}
+};

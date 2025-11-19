@@ -43,7 +43,6 @@ exports.handler = async function handler(event) {
     }
 
     const data = await res.json();
-    console.log("data", data);
     if (!data.resources || data.resources.length === 0) {
       return {
         statusCode: 200,
@@ -59,14 +58,12 @@ exports.handler = async function handler(event) {
         // Try parsing JSON first (clone so we can read body again if needed)
         try {
           const json = await textRes.clone().json();
-          console.log("Parsed JSON from", resource.public_id);
           return json;
         } catch (jsonErr) {
           // Not valid JSON via json(), fall back to text
           const txt = await textRes.text();
           try {
             const parsed = JSON.parse(txt);
-            console.log("Text parsed as JSON for", resource.public_id);
             return parsed;
           } catch (parseErr) {
             // Plain text — wrap into a consistent object
@@ -117,8 +114,6 @@ exports.handler = async function handler(event) {
         };
       }
     });
-
-    console.log("get-texts: returning", sanitized.length, "items (sanitized)");
 
     return {
       statusCode: 200,

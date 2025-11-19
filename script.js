@@ -555,18 +555,30 @@ async function loadImagesFromAssets() {
         console.warn("Failed to fetch texts:", tResp.status);
       } else {
         const texts = await tResp.json();
-        console.log("texts", texts);
         (texts || []).forEach((t) => {
           if (!t) return;
-          const rawDate = t.date != null ? String(t.date) : t.uploaded != null ? String(t.uploaded) : null;
+          const rawDate =
+            t.date != null
+              ? String(t.date)
+              : t.uploaded != null
+              ? String(t.uploaded)
+              : null;
           let key = "undated";
           if (rawDate) {
-            const m = rawDate.match(/(20\d{2}-\d{2}-\d{2})/) || rawDate.match(/(20\d{2}_\d{2}_\d{2})/) || rawDate.match(/(20\d{4}\d{2})/);
+            const m =
+              rawDate.match(/(20\d{2}-\d{2}-\d{2})/) ||
+              rawDate.match(/(20\d{2}_\d{2}_\d{2})/) ||
+              rawDate.match(/(20\d{4}\d{2})/);
             if (m) key = (m[1] || m[0]).replace(/_/g, "-");
             else key = rawDate.trim();
           }
           textsByDate[key] = textsByDate[key] || [];
-          const content = t.content != null ? String(t.content) : t.text != null ? String(t.text) : "";
+          const content =
+            t.content != null
+              ? String(t.content)
+              : t.text != null
+              ? String(t.text)
+              : "";
           textsByDate[key].push(content);
         });
       }

@@ -30,7 +30,7 @@ export async function handler(event) {
   try {
     const headersReq = auth ? { Authorization: `Basic ${auth}` } : {};
     const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/resources/image`,
+      `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?max_results=500`,
       { headers: headersReq }
     );
 
@@ -47,6 +47,7 @@ export async function handler(event) {
     }
 
     const data = await res.json();
+    console.log("data", data);
 
     return {
       statusCode: 200,
